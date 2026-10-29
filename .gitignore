@@ -189,3 +189,6 @@ debug_I2_zero_band
 .idea
 
 third_party/
+
+# cluv results symlink
+/logs

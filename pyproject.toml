@@ -409,3 +409,53 @@ packages = ["src/prime_rl"]
 
 [tool.hatch.metadata]
 allow-direct-references = true
+
+# Cluster submission with cluv (https://github.com/mila-iqia/cluv). See scripts/cluv/README.md.
+[tool.cluv]
+job_script_path = "scripts/cluv/rl.sh"
+# Slurm stdout/stderr per job, synced back by `cluv sync`. Run artifacts (checkpoints, rollouts)
+# go to $SCRATCH/prime-rl/outputs instead, see scripts/cluv/rl.sh.
+results_path = "$SCRATCH/logs/prime-rl"
+results_symlink = "logs"
+project_dir = "$HOME/repos/prime-rl"
+
+# Compute nodes have no internet unless a cluster overrides this: prepare the snapshot and the
+# model on a login node with `rl.sh --prepare` before submitting.
+[tool.cluv.env]
+UV_OFFLINE = "1"
+HF_HUB_OFFLINE = "1"
+WANDB_MODE = "offline"
+
+[tool.cluv.local]
+env = { SCRATCH = "$HOME/scratch" }
+
+[tool.cluv.sbatch_args]
+requeue = true
+
+[tool.cluv.clusters.mila]
+env = { UV_OFFLINE = "0", HF_HUB_OFFLINE = "0", WANDB_MODE = "online" }
+sbatch_args = { partition = "long", cpus-per-task = 32, mem = "256G" }
+
+# DRAC. Accounts follow cluv's Mila defaults; replace them with your own allocations.
+[tool.cluv.clusters.narval]
+# 4x A100-40GB per node.
+sbatch_args = { account = "def-bengioy", cpus-per-task = 32, mem = "256G" }
+
+[tool.cluv.clusters.rorqual]
+sbatch_args = { account = "rrg-bengioy-ad", cpus-per-task = 32, mem = "256G" }
+
+[tool.cluv.clusters.fir]
+env = { UV_OFFLINE = "0", HF_HUB_OFFLINE = "0", WANDB_MODE = "online" }
+sbatch_args = { account = "rrg-bengioy-ad", cpus-per-task = 32, mem = "256G" }
+
+[tool.cluv.clusters.nibi]
+env = { UV_OFFLINE = "0", HF_HUB_OFFLINE = "0", WANDB_MODE = "online" }
+sbatch_args = { account = "rrg-bengioy-ad", cpus-per-task = 32, mem = "256G" }
+
+[tool.cluv.clusters.trillium-gpu]
+# $HOME isn't mounted on compute nodes, and CPUs and memory come with the GPUs (no --mem).
+project_dir = "$SCRATCH/repos/prime-rl"
+sbatch_args = { account = "rrg-bengioy-ad" }
+
+[tool.cluv.clusters.tamia]
+sbatch_args = { cpus-per-task = 32, mem = "256G" }
