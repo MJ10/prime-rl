@@ -66,9 +66,10 @@ ssh narval 'cd ~/repos/prime-rl && GIT_COMMIT=$(git rev-parse HEAD) bash scripts
 cluv submit narval -- examples/glyphbench/single_node.toml
 ```
 
-`--prepare` builds the same per-commit snapshot that jobs use, then downloads the config's
-`model.name` into `$HF_HOME`. A job whose snapshot isn't prepared fails right away. Upload offline
-W&B runs from a login node with `wandb sync`.
+`--prepare` snapshots the commit and installs its environment once, which fills the shared uv cache
+at `$SCRATCH/.cache/uv`, then downloads the config's `model.name` into `$HF_HOME`. Jobs install
+from that cache, so an unprepared commit fails at its `uv sync`. Upload offline W&B runs from a
+login node with `wandb sync`.
 
 ## Submitting
 
@@ -100,11 +101,14 @@ Check jobs with `cluv status`. Slurm logs land in `$SCRATCH/logs/prime-rl/<clust
 ## What a job does
 
 1. Clones the submitted commit (`$GIT_COMMIT`) into `$SCRATCH/prime-rl/snapshots/<commit>`, with
-   submodules cloned from the cluster checkout, and builds its environment with
-   `uv sync --all-extras --locked`. Later jobs on the same commit reuse the snapshot, and later
-   syncs never change the code under a queued or running job. Each job then installs the same
-   environment from the uv cache into `$SLURM_TMPDIR`, since importing vLLM from network storage
-   is slow and has failed vLLM startup.
+   submodules cloned from the cluster checkout. Later jobs on the same commit reuse the snapshot,
+   and later syncs never change the code under a queued or running job. Each job clones into a
+   private directory and renames it into place, since file locks don't work across nodes on every
+   cluster filesystem.
+   The job installs its environment (`uv sync --all-extras --locked`) into `$SLURM_TMPDIR`. On
+   clusters with internet the uv cache is there too, so nothing is built on shared storage:
+   network filesystems have failed vLLM startup and concurrent builds on Mila. Offline clusters
+   install from the shared cache that `--prepare` fills.
 2. Runs `uv run rl @ <config> --run.name <config name>-<job id> --no-dashboard ...` from the
    snapshot, writing the run to `$SCRATCH/prime-rl/outputs/<config name>-<job id>`.
    Nodes can be shared with other jobs, so the job moves the inference, rollout-transport,
@@ -114,7 +118,7 @@ Check jobs with `cluv status`. Slurm logs land in `$SCRATCH/logs/prime-rl/<clust
    directory and passes `--resume` when it has a checkpoint, otherwise `--clean`. Set `[ckpt]` in
    the config for preemptible partitions.
 
-The job sets these when they are unset: `UV_CACHE_DIR=$SCRATCH/.cache/uv`,
+The job sets these when they are unset: `UV_CACHE_DIR` (see above),
 `HF_HOME=$SCRATCH/.cache/huggingface`, `PRL_OUTPUT_DIR=$SCRATCH/prime-rl/outputs`. Override them,
 or add `WANDB_API_KEY`, through `env` in `[tool.cluv]` or `[tool.cluv.clusters.<name>]`.
 

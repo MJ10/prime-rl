@@ -5,9 +5,10 @@
 #   cluv submit mila scripts/cluv/rl.sh -- examples/glyphbench/single_node.toml [rl overrides...]
 #
 # Runs from a per-commit snapshot of the cluster checkout so later `cluv sync`s don't change the
-# code under a queued, running or requeued job. Requeued jobs resume from their latest checkpoint.
+# code under a queued, running or requeued job, with its environment installed on node-local disk.
+# Requeued jobs resume from their latest checkpoint.
 #
-# On clusters whose compute nodes have no internet (UV_OFFLINE=1), build the snapshot and download
+# On clusters whose compute nodes have no internet (UV_OFFLINE=1), fill the uv cache and download
 # the model on a login node first, from the cluster checkout:
 #
 #   GIT_COMMIT=$(git rev-parse HEAD) bash scripts/cluv/rl.sh --prepare <config.toml>
@@ -31,56 +32,52 @@ shift
 project_root=$PWD
 prime_rl_root=${PRIME_RL_ROOT:-$SCRATCH/prime-rl}
 snapshot=$prime_rl_root/snapshots/$GIT_COMMIT
-export UV_CACHE_DIR=${UV_CACHE_DIR:-$SCRATCH/.cache/uv}
 export HF_HOME=${HF_HOME:-$SCRATCH/.cache/huggingface}
 export PRL_OUTPUT_DIR=${PRL_OUTPUT_DIR:-$prime_rl_root/outputs}
+# Nothing is installed or built on shared storage during a job: network filesystems have failed
+# vLLM startup and concurrent builds on Mila. Offline jobs read the cache that --prepare filled.
+if $prepare || [ "${UV_OFFLINE:-0}" = 1 ]; then
+    export UV_CACHE_DIR=${UV_CACHE_DIR:-$SCRATCH/.cache/uv}
+    export UV_PROJECT_ENVIRONMENT=$(mktemp -d "${SLURM_TMPDIR:-$prime_rl_root}/venv.XXXXXX")
+else
+    export UV_CACHE_DIR=${UV_CACHE_DIR:-$SLURM_TMPDIR/uv-cache}
+    export UV_PROJECT_ENVIRONMENT=$SLURM_TMPDIR/venv
+fi
 # Mooncake (KV-cache offload, unused here) only has glibc 2.35+ wheels; DRAC nodes have 2.34.
 sync_args=(--all-extras --locked --no-install-package mooncake-transfer-engine)
 
-# Build the snapshot once per commit. Submodules are cloned from the cluster checkout, whose
-# submodules `cluv sync` keeps current (see scripts/cluv/README.md).
-mkdir -p "$prime_rl_root/snapshots"
-(
-    flock 9
-    if [ ! -e "$snapshot/.ready" ]; then
-        if [ "${UV_OFFLINE:-0}" = 1 ]; then
-            echo "No snapshot for $GIT_COMMIT and no internet. Run 'rl.sh --prepare' on a login node." >&2
-            exit 1
-        fi
-        rm -rf "$snapshot"
-        # Compute nodes may lack git-lfs; leave LFS pointer files (none of which rl needs) as they are.
-        export GIT_CONFIG_COUNT=2 GIT_CONFIG_KEY_0=filter.lfs.process GIT_CONFIG_VALUE_0= \
-            GIT_CONFIG_KEY_1=filter.lfs.required GIT_CONFIG_VALUE_1=false
-        git clone --quiet --no-checkout "$project_root" "$snapshot"
-        git -C "$snapshot" checkout --quiet --detach "$GIT_COMMIT"
-        git -C "$snapshot" config -f .gitmodules --get-regexp '^submodule\..*\.path$' |
-            while read -r key path; do
-                [ -e "$project_root/$path/.git" ] || continue
-                name=${key#submodule.}
-                name=${name%.path}
-                git -C "$snapshot" submodule --quiet init -- "$path"
-                git -C "$snapshot" config "submodule.$name.url" "$project_root/$path"
-            done
-        git -C "$snapshot" -c protocol.file.allow=always submodule update --quiet
-        uv --directory "$snapshot" sync "${sync_args[@]}"
-        touch "$snapshot/.ready"
-    fi
-) 9>"$snapshot.lock"
+# Snapshot the commit once. Each job clones into a private directory and renames it into place,
+# since file locks don't work across nodes on every cluster filesystem. Submodules are cloned from
+# the cluster checkout, whose submodules `cluv sync` keeps current (see scripts/cluv/README.md).
+if [ ! -d "$snapshot" ]; then
+    mkdir -p "$prime_rl_root/snapshots"
+    tmp=$(mktemp -d "$snapshot.tmp.XXXXXX")
+    # Compute nodes may lack git-lfs; leave LFS pointer files (none of which rl needs) as they are.
+    export GIT_CONFIG_COUNT=2 GIT_CONFIG_KEY_0=filter.lfs.process GIT_CONFIG_VALUE_0= \
+        GIT_CONFIG_KEY_1=filter.lfs.required GIT_CONFIG_VALUE_1=false
+    git clone --quiet --no-checkout "$project_root" "$tmp"
+    git -C "$tmp" checkout --quiet --detach "$GIT_COMMIT"
+    git -C "$tmp" config -f .gitmodules --get-regexp '^submodule\..*\.path$' |
+        while read -r key path; do
+            [ -e "$project_root/$path/.git" ] || continue
+            name=${key#submodule.}
+            name=${name%.path}
+            git -C "$tmp" submodule --quiet init -- "$path"
+            git -C "$tmp" config "submodule.$name.url" "$project_root/$path"
+        done
+    git -C "$tmp" -c protocol.file.allow=always submodule update --quiet
+    mv -T "$tmp" "$snapshot" 2>/dev/null || rm -rf "$tmp"
+fi
 
 cd "$snapshot"
+uv sync "${sync_args[@]}" --quiet
 
 if $prepare; then
     model=$(uv run --no-sync python -c 'import sys, tomllib; print(tomllib.load(open(sys.argv[1], "rb"))["model"]["name"])' "$config")
     uv run --no-sync hf download "$model"
-    echo "Prepared $snapshot with $model"
+    rm -rf "$UV_PROJECT_ENVIRONMENT"
+    echo "Prepared $GIT_COMMIT with $model"
     exit 0
-fi
-
-# Install the environment on node-local disk: importing vLLM and transformers from a network
-# filesystem is slow and has failed vLLM startup on Mila. The snapshot's own venv fills the cache.
-if [ -n "${SLURM_TMPDIR:-}" ]; then
-    export UV_PROJECT_ENVIRONMENT=$SLURM_TMPDIR/venv
-    uv sync "${sync_args[@]}" --link-mode copy --quiet
 fi
 
 # The job id survives requeues, so a requeued job finds its own run directory.
