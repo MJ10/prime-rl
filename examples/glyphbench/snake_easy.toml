@@ -1,0 +1,43 @@
+# Overlay for single_node.toml: single-task Snake Easy, a quick check that the policy learns.
+#   rl @ examples/glyphbench/single_node.toml @ examples/glyphbench/snake_easy.toml
+# Each step is 4 groups x 16 mixed-seed episodes.
+
+[orchestrator]
+batch_size = 64
+
+[orchestrator.train]
+group_size = 16
+
+[[orchestrator.train.source]]
+name = "train-snake-easy"
+env.taskset.id = "glyphbench"
+env.taskset.tasks = ["glyphbench/classics-snake-easy-v0"]
+env.taskset.seed = 42
+env.taskset.num_seeds = 512
+env.taskset.mixed_seeds = true
+env.taskset.max_output_tokens = 4096
+env.taskset.forfeit_mode = "noop"
+env.taskset.use_memory = false
+env.player.harness.id = "glyphbench"
+env.player.max_total_tokens = 32767
+env.player.runtime.type = "subprocess"
+serve.pool.type = "elastic"
+serve.pool.max_workers = 4
+serve.pool.multiplex = 128
+
+[orchestrator.eval.select]
+limit = 16
+
+[[orchestrator.eval.source]]
+name = "eval-snake-easy-fixed"
+env.taskset.id = "glyphbench"
+env.taskset.tasks = ["glyphbench/classics-snake-easy-v0"]
+env.taskset.seed = 1000000
+env.taskset.num_seeds = 16
+env.taskset.mixed_seeds = false
+env.taskset.max_output_tokens = 4096
+env.taskset.forfeit_mode = "noop"
+env.taskset.use_memory = false
+env.player.harness.id = "glyphbench"
+env.player.max_total_tokens = 32767
+env.player.runtime.type = "subprocess"
