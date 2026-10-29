@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = "==3.12.*"
 resolution-markers = [
     "platform_machine == 'x86_64' and sys_platform == 'linux'",
@@ -173,6 +173,11 @@ overrides = [
 name = "ai-dynamo-runtime"
 version = "1.4.2"
 requires-dist = ["pydantic>=2.10.6,<=2.13.5", "uvloop>=0.21.0"]
+
+[[manifest.dependency-metadata]]
+name = "glyphbench"
+version = "0.1.1"
+requires-dist = ["verifiers", "httpx>=0.27", "numpy>=2.0", "pydantic>=2.9"]
 
 [[manifest.dependency-metadata]]
 name = "modelexpress"
@@ -2161,6 +2166,17 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/33/f6/354ae6491228b5eb40e10d89c4d13c651fe1cf7556e35ebdded50cff57ce/gitpython-3.1.50.tar.gz", hash = "sha256:80da2d12504d52e1f998772dc5baf6e553f8d2fcfe1fcc226c9d9a2ee3372dcc", size = 219798, upload-time = "2026-05-06T04:01:26.571Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/20/7a/1c6e3562dfd8950adbb11ffbc65d21e7c89d01a6e4f137fa981056de25c5/gitpython-3.1.50-py3-none-any.whl", hash = "sha256:d352abe2908d07355014abdd21ddf798c2a961469239afec4962e9da884858f9", size = 212507, upload-time = "2026-05-06T04:01:23.799Z" },
+]
+
+[[package]]
+name = "glyphbench"
+version = "0.1.1"
+source = { git = "https://github.com/MJ10/glyphbench?rev=896e5af#896e5af4f3dc798e647d326ed1973e41102f6584" }
+dependencies = [
+    { name = "httpx" },
+    { name = "numpy" },
+    { name = "pydantic" },
+    { name = "verifiers" },
 ]
 
 [[package]]
@@ -5145,6 +5161,9 @@ flash-attn-3 = [
 flash-attn-cute = [
     { name = "flash-attn-4", marker = "sys_platform == 'linux'" },
 ]
+glyphbench = [
+    { name = "glyphbench" },
+]
 gpu = [
     { name = "deep-select", version = "1.0.0+bfa4507.20261026.121543", source = { url = "https://github.com/PrimeIntellect-ai/prime-kernels/releases/download/v0.1.0-b52bd9d/deep_select-1.0.0+bfa4507.20261026.121543-cp312-cp312-linux_aarch64.whl" }, marker = "platform_machine != 'x86_64' and sys_platform == 'linux'" },
     { name = "deep-select", version = "1.0.0+bfa4507.20261026.121630", source = { url = "https://github.com/PrimeIntellect-ai/prime-kernels/releases/download/v0.1.0-b52bd9d/deep_select-1.0.0+bfa4507.20261026.121630-cp312-cp312-linux_x86_64.whl" }, marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
@@ -5222,6 +5241,7 @@ requires-dist = [
     { name = "flashinfer-jit-cache", marker = "platform_machine == 'aarch64' and sys_platform == 'linux' and extra == 'gpu'", url = "https://github.com/flashinfer-ai/flashinfer/releases/download/v0.7.0.post1/flashinfer_jit_cache-0.7.0.post1%2Bcu130-cp39-abi3-manylinux_2_28_aarch64.whl" },
     { name = "flashinfer-jit-cache", marker = "platform_machine != 'aarch64' and platform_machine != 'x86_64' and sys_platform == 'linux' and extra == 'gpu'", specifier = "==0.7.0.post1+cu130" },
     { name = "flashinfer-jit-cache", marker = "platform_machine == 'x86_64' and sys_platform == 'linux' and extra == 'gpu'", url = "https://github.com/flashinfer-ai/flashinfer/releases/download/v0.7.0.post1/flashinfer_jit_cache-0.7.0.post1%2Bcu130-cp39-abi3-manylinux_2_28_x86_64.whl" },
+    { name = "glyphbench", marker = "extra == 'glyphbench'", git = "https://github.com/MJ10/glyphbench?rev=896e5af" },
     { name = "jaxtyping", specifier = ">=0.3.2" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "mamba-ssm", marker = "sys_platform == 'linux' and extra == 'gpu'", git = "https://github.com/state-spaces/mamba?rev=f577286" },
@@ -5284,7 +5304,7 @@ requires-dist = [
     { name = "wandb", specifier = ">=0.26.1" },
     { name = "wandb-workspaces", specifier = ">=0.4.3" },
 ]
-provides-extras = ["gpu", "dashboard", "dynamo", "flash-attn", "flash-attn-3", "flash-attn-cute", "disagg", "quack", "sonic-moe", "kernels", "all"]
+provides-extras = ["gpu", "dashboard", "dynamo", "flash-attn", "flash-attn-3", "flash-attn-cute", "disagg", "quack", "sonic-moe", "kernels", "glyphbench", "all"]
 
 [package.metadata.requires-dev]
 dev = [

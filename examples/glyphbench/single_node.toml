@@ -1,0 +1,163 @@
+# GlyphBench Qwen3.5-4B multitask pilot on ONE 4-GPU node (prime-rl v0.10).
+# Runs inside an existing SLURM allocation without a [slurm] block: `uv run rl`
+# launches inference, trainer and orchestrator locally. The launcher gives the
+# first `num_infer_gpus` visible GPUs to vLLM and the next `num_train_gpus` to the
+# trainer (FSDP). Launch with, e.g.:
+#   uv run rl @ single_node.toml --run.name X --no-dashboard --clean
+# output_dir comes from $PRL_OUTPUT_DIR. W&B is off; enable it with
+#   --monitors.wandb.project glyphbench-rl [--monitors.wandb.group ...]
+# Same algorithm, loss and optimizer as multitask.toml; smaller context and batch.
+
+max_steps = 200
+seq_len = 32768
+
+[env_vars]
+TRITON_CACHE_DIR = "/tmp/glyphbench-triton-cache"
+TORCHINDUCTOR_CACHE_DIR = "/tmp/glyphbench-torchinductor-cache"
+
+[deployment]
+type = "single_node"
+gpus_per_node = 4
+num_infer_gpus = 2
+num_train_gpus = 2
+
+[model]
+name = "Qwen/Qwen3.5-4B"
+
+[weight_broadcast]
+type = "nccl"
+timeout = 1800
+
+[ckpt]
+# Preemptible partition: resume-capable checkpoints every 25 steps.
+interval = 25
+keep_last = 2
+
+[monitors]
+file = "None"
+prime = "None"
+
+[trainer]
+dist_timeout_seconds = 3600
+
+[trainer.model]
+attn = "auto"
+optimization_dtype = "bfloat16"
+reduce_dtype = "bfloat16"
+offload = "none"
+fused_lm_head_token_chunk_size = 8192
+ac_offloading = "None"
+compile = "None"
+
+[trainer.model.ac]
+mode = "full"
+freq = 1
+
+[trainer.optim]
+type = "adamw"
+lr = 1e-6
+betas1 = 0.9
+betas2 = 0.95
+weight_decay = 0.0
+max_norm = 1.0
+
+[trainer.scheduler]
+type = "constant"
+
+[trainer.loss]
+type = "ipo"
+eps = 0.1
+adv_tau = 1.0
+
+[orchestrator]
+# 8 groups x 8 rollouts: one group per pilot task per step.
+batch_size = 64
+max_staleness = 3
+constant_trainer_batch_size = false
+collect_inference_metrics = false
+
+[orchestrator.concurrency]
+max_inflight = 128
+
+[orchestrator.renderer]
+name = "qwen3.5"
+enable_thinking = true
+thinking_retention = "all"
+
+[orchestrator.train]
+group_size = 8
+
+[orchestrator.train.algo]
+type = "grpo"
+
+[orchestrator.train.sampling]
+max_completion_tokens = 4096
+temperature = 1.0
+
+[[orchestrator.train.source]]
+name = "train-pilot"
+env.taskset.id = "glyphbench"
+env.taskset.task_file = "examples/glyphbench/tasks/pilot.txt"
+env.taskset.seed = 42
+env.taskset.num_seeds = 512
+env.taskset.mixed_seeds = true
+env.taskset.max_output_tokens = 4096
+env.taskset.forfeit_mode = "noop"
+env.taskset.use_memory = false
+env.player.harness.id = "glyphbench"
+# Stop between turns one token before the engine boundary (seq_len - 1).
+env.player.max_total_tokens = 32767
+env.player.runtime.type = "subprocess"
+serve.pool.type = "elastic"
+serve.pool.max_workers = 4
+serve.pool.multiplex = 128
+
+[orchestrator.eval]
+interval = 25
+group_size = 1
+skip_first_step = false
+
+[orchestrator.eval.select]
+# 8 pilot tasks x 2 held-out seeds.
+limit = 16
+
+[orchestrator.eval.sampling]
+max_tokens = 4096
+temperature = 1.0
+top_p = 1.0
+
+[[orchestrator.eval.source]]
+name = "eval-pilot-fixed"
+env.taskset.id = "glyphbench"
+env.taskset.task_file = "examples/glyphbench/tasks/pilot.txt"
+env.taskset.seed = 1000000
+env.taskset.num_seeds = 2
+env.taskset.mixed_seeds = false
+env.taskset.max_output_tokens = 4096
+env.taskset.forfeit_mode = "noop"
+env.taskset.use_memory = false
+env.player.harness.id = "glyphbench"
+env.player.max_total_tokens = 32767
+env.player.runtime.type = "subprocess"
+
+[inference]
+
+[inference.env_vars]
+VLLM_CACHE_ROOT = "/tmp/glyphbench-vllm-cache"
+FLASHINFER_WORKSPACE_BASE = "/tmp/glyphbench-flashinfer-cache"
+
+[inference.vllm]
+max_model_len = 32768
+# Scoped mitigation for the pinned vLLM activation kernel (GlyphBench docs/DEPENDENCIES.md).
+max_num_batched_tokens = 8192
+enable_chunked_prefill = true
+tensor_parallel_size = 1
+data_parallel_size = 2
+api_server_count = 2
+gpu_memory_utilization = 0.9
+enable_prefix_caching = true
+enforce_eager = false
+gdn_prefill_backend = "triton"
+
+[inference.vllm.compilation_config]
+custom_ops = ["-silu_and_mul"]

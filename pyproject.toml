@@ -111,6 +111,8 @@ sonic-moe = ["sonic-moe ; sys_platform == 'linux'"]
 kernels = [
     "prime-kernels ; sys_platform == 'linux'",
 ]
+# GlyphBench tasksets for examples/glyphbench.
+glyphbench = ["glyphbench"]
 all = [
     "prime-rl[gpu]",
     "prime-rl[flash-attn]",
@@ -209,6 +211,13 @@ requires-dist = [
     "torch>=2.6.0",
 ]
 
+# GlyphBench pins verifiers and prime-pydantic-config by git URL and requires datasets>=5 for its
+# legacy integration. Its v1 taskset, env and harness only need these.
+[[tool.uv.dependency-metadata]]
+name = "glyphbench"
+version = "0.1.1"
+requires-dist = ["verifiers", "httpx>=0.27", "numpy>=2.0", "pydantic>=2.9"]
+
 # Mirror the upstream Pydantic compatibility correction until the next release.
 [[tool.uv.dependency-metadata]]
 name = "ai-dynamo-runtime"
@@ -280,6 +289,8 @@ prime-rl-configs = { path = "packages/prime-rl-configs", editable = true }
 verifiers = { path = "deps/verifiers", editable = true }
 renderers = { path = "deps/renderers", editable = true }
 prime-pydantic-config = { path = "deps/pydantic-config", editable = true }
+# Fork of VmaxAI/glyphbench that exports only the v1 plugin classes from the package root.
+glyphbench = { git = "https://github.com/MJ10/glyphbench", rev = "896e5af" }
 # TODO: replace with the prime-runs PyPI release that has PrimeIntellect-ai/prime#1109 asap, and raise the
 # prime-runs minimum to it (prime-traces is pinned in override-dependencies until then).
 prime-runs = { git = "https://github.com/PrimeIntellect-ai/prime", subdirectory = "packages/prime-runs", rev = "adf8d25c3e34df8e039674fae9e0e4bf9cee27f3" }
