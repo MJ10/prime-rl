@@ -24,10 +24,11 @@ set `submodule.recurse` so that the `git checkout`/`git pull` that cluv runs on 
 them current:
 
 ```bash
-ssh mila 'git clone --recurse-submodules git@github.com:PrimeIntellect-ai/prime-rl.git ~/repos/prime-rl && git -C ~/repos/prime-rl config submodule.recurse true'
+ssh mila 'git clone --recurse-submodules git@github.com:MJ10/prime-rl.git ~/repos/prime-rl && git -C ~/repos/prime-rl config submodule.recurse true'
 ```
 
-The clone path must match `project_dir` (`$SCRATCH/repos/prime-rl` on `trillium-gpu`). The
+Clone the remote your branch tracks, since cluv fetches and pushes through it. The clone path must
+match `project_dir` (`$SCRATCH/repos/prime-rl` on `trillium-gpu`). The
 cluster needs a GitHub SSH key for the `git@github.com:` submodule URLs.
 
 Then connect and sync:
