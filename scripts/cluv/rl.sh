@@ -34,6 +34,8 @@ snapshot=$prime_rl_root/snapshots/$GIT_COMMIT
 export UV_CACHE_DIR=${UV_CACHE_DIR:-$SCRATCH/.cache/uv}
 export HF_HOME=${HF_HOME:-$SCRATCH/.cache/huggingface}
 export PRL_OUTPUT_DIR=${PRL_OUTPUT_DIR:-$prime_rl_root/outputs}
+# Mooncake (KV-cache offload, unused here) only has glibc 2.35+ wheels; DRAC nodes have 2.34.
+sync_args=(--all-extras --locked --no-install-package mooncake-transfer-engine)
 
 # Build the snapshot once per commit. Submodules are cloned from the cluster checkout, whose
 # submodules `cluv sync` keeps current (see scripts/cluv/README.md).
@@ -60,8 +62,7 @@ mkdir -p "$prime_rl_root/snapshots"
                 git -C "$snapshot" config "submodule.$name.url" "$project_root/$path"
             done
         git -C "$snapshot" -c protocol.file.allow=always submodule update --quiet
-        # Mooncake (KV-cache offload, unused here) only has glibc 2.35+ wheels; DRAC nodes have 2.34.
-        uv --directory "$snapshot" sync --all-extras --locked --no-install-package mooncake-transfer-engine
+        uv --directory "$snapshot" sync "${sync_args[@]}"
         touch "$snapshot/.ready"
     fi
 ) 9>"$snapshot.lock"
@@ -73,6 +74,13 @@ if $prepare; then
     uv run --no-sync hf download "$model"
     echo "Prepared $snapshot with $model"
     exit 0
+fi
+
+# Install the environment on node-local disk: importing vLLM and transformers from a network
+# filesystem is slow and has failed vLLM startup on Mila. The snapshot's own venv fills the cache.
+if [ -n "${SLURM_TMPDIR:-}" ]; then
+    export UV_PROJECT_ENVIRONMENT=$SLURM_TMPDIR/venv
+    uv sync "${sync_args[@]}" --link-mode copy --quiet
 fi
 
 # The job id survives requeues, so a requeued job finds its own run directory.

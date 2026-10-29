@@ -102,7 +102,9 @@ Check jobs with `cluv status`. Slurm logs land in `$SCRATCH/logs/prime-rl/<clust
 1. Clones the submitted commit (`$GIT_COMMIT`) into `$SCRATCH/prime-rl/snapshots/<commit>`, with
    submodules cloned from the cluster checkout, and builds its environment with
    `uv sync --all-extras --locked`. Later jobs on the same commit reuse the snapshot, and later
-   syncs never change the code under a queued or running job.
+   syncs never change the code under a queued or running job. Each job then installs the same
+   environment from the uv cache into `$SLURM_TMPDIR`, since importing vLLM from network storage
+   is slow and has failed vLLM startup.
 2. Runs `uv run rl @ <config> --run.name <config name>-<job id> --no-dashboard ...` from the
    snapshot, writing the run to `$SCRATCH/prime-rl/outputs/<config name>-<job id>`.
    Nodes can be shared with other jobs, so the job moves the inference, rollout-transport,
