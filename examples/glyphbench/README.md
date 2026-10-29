@@ -20,6 +20,8 @@ Two overlays layer on `single_node.toml` with `rl @ single_node.toml @ <overlay>
 `snake_easy.toml` trains and evaluates on Snake Easy alone, and `no_thinking.toml` turns off
 Qwen3.5 thinking with a 512-token turn cap. Together they give a fast learning check (about a
 minute per step on 4 A100s).
+`pilot_learning.toml` scales the 8-task pilot up for a longer learning test: 8 groups x 16 per
+step, learning rate 5e-6, and 64 held-out episodes every 20 steps. Use it with `no_thinking.toml`.
 
 `tasks/hero100.txt` is the GlyphBench paper's 100-task mixture and `tasks/fixed_eval.txt` its fixed
 50-task eval panel. Point a source's `env.taskset.task_file` at any manifest; paths are relative to

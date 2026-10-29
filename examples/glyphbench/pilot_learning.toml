@@ -1,0 +1,37 @@
+# Overlay for single_node.toml: the 8-task pilot sized to measure learning. Each step is one
+# 16-rollout group per task, and every 20 steps 64 held-out episodes (8 seeds per task) are
+# evaluated. Pair it with no_thinking.toml for about 200 steps in a day on 4 H100s:
+#   rl @ examples/glyphbench/single_node.toml @ examples/glyphbench/pilot_learning.toml \
+#      @ examples/glyphbench/no_thinking.toml
+
+[trainer.optim]
+lr = 5e-6
+
+[orchestrator]
+batch_size = 128
+
+[orchestrator.concurrency]
+max_inflight = 256
+
+[orchestrator.train]
+group_size = 16
+
+[orchestrator.eval]
+interval = 20
+
+[orchestrator.eval.select]
+limit = 64
+
+[[orchestrator.eval.source]]
+name = "eval-pilot-fixed"
+env.taskset.id = "glyphbench"
+env.taskset.task_file = "examples/glyphbench/tasks/pilot.txt"
+env.taskset.seed = 1000000
+env.taskset.num_seeds = 8
+env.taskset.mixed_seeds = false
+env.taskset.max_output_tokens = 4096
+env.taskset.forfeit_mode = "noop"
+env.taskset.use_memory = false
+env.player.harness.id = "glyphbench"
+env.player.max_total_tokens = 30720
+env.player.runtime.type = "subprocess"
