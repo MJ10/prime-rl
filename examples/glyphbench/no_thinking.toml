@@ -1,0 +1,18 @@
+# Overlay: Qwen3.5 without thinking and a 512-token turn cap, for fast learning checks.
+#   rl @ examples/glyphbench/single_node.toml @ examples/glyphbench/snake_easy.toml \
+#      @ examples/glyphbench/no_thinking.toml
+#
+# Train rollouts are rendered by the orchestrator's renderer, but evals send plain chat requests
+# to vLLM, whose Qwen3.5 chat template thinks by default. Evals need the template switch too.
+
+[orchestrator.renderer]
+enable_thinking = false
+
+[orchestrator.train.sampling]
+max_completion_tokens = 512
+
+[orchestrator.eval.sampling]
+max_tokens = 512
+
+[orchestrator.eval.sampling.chat_template_kwargs]
+enable_thinking = false

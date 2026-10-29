@@ -16,6 +16,11 @@ uv sync --all-extras
 | `single_task.toml` | 2 nodes x 8 GPUs, prime-rl's SLURM launcher | Snake Easy, 1 group x 512 |
 | `multitask.toml` | 4 nodes x 8 GPUs, prime-rl's SLURM launcher | `tasks/craftax100.txt`, 64K context, 16 groups x 64 |
 
+Two overlays layer on `single_node.toml` with `rl @ single_node.toml @ <overlay>`:
+`snake_easy.toml` trains and evaluates on Snake Easy alone, and `no_thinking.toml` turns off
+Qwen3.5 thinking with a 512-token turn cap. Together they give a fast learning check (about a
+minute per step on 4 A100s).
+
 `tasks/hero100.txt` is the GlyphBench paper's 100-task mixture and `tasks/fixed_eval.txt` its fixed
 50-task eval panel. Point a source's `env.taskset.task_file` at any manifest; paths are relative to
 the repository root, so launch from there.
