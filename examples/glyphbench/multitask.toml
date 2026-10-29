@@ -135,7 +135,7 @@ env.taskset.max_output_tokens = 4096
 env.taskset.forfeit_mode = "noop"
 env.taskset.use_memory = false
 env.player.harness.id = "glyphbench"
-env.player.max_total_tokens = 65535
+env.player.max_total_tokens = 63488
 env.player.runtime.type = "subprocess"
 serve.pool.type = "elastic"
 serve.pool.max_workers = 8
@@ -167,7 +167,7 @@ env.taskset.max_output_tokens = 4096
 env.taskset.forfeit_mode = "noop"
 env.taskset.use_memory = false
 env.player.harness.id = "glyphbench"
-env.player.max_total_tokens = 65535
+env.player.max_total_tokens = 63488
 env.player.runtime.type = "subprocess"
 
 [inference]

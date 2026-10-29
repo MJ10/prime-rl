@@ -105,8 +105,9 @@ env.taskset.max_output_tokens = 4096
 env.taskset.forfeit_mode = "noop"
 env.taskset.use_memory = false
 env.player.harness.id = "glyphbench"
-# Stop between turns one token before the engine boundary (seq_len - 1).
-env.player.max_total_tokens = 32767
+# Stop between turns 2048 tokens before the engine limit, leaving room for the next observation:
+# the check runs after each reply, and the prompt with the next observation must still fit.
+env.player.max_total_tokens = 30720
 env.player.runtime.type = "subprocess"
 serve.pool.type = "elastic"
 serve.pool.max_workers = 4
@@ -137,7 +138,7 @@ env.taskset.max_output_tokens = 4096
 env.taskset.forfeit_mode = "noop"
 env.taskset.use_memory = false
 env.player.harness.id = "glyphbench"
-env.player.max_total_tokens = 32767
+env.player.max_total_tokens = 30720
 env.player.runtime.type = "subprocess"
 
 [inference]
