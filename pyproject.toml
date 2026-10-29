@@ -444,7 +444,8 @@ env = { SCRATCH = "$HOME/scratch" }
 requeue = true
 
 [tool.cluv.clusters.mila]
-env = { UV_OFFLINE = "0", HF_HUB_OFFLINE = "0", WANDB_MODE = "online" }
+# BeeGFS scratch has no cross-node file locks, so keep each job's uv cache on local disk.
+env = { UV_OFFLINE = "0", HF_HUB_OFFLINE = "0", WANDB_MODE = "online", PRIME_RL_LOCAL_UV_CACHE = "1" }
 # 80GB A100s; the partition also has V100, RTX8000, L40S and 40GB A100 nodes.
 sbatch_args = { partition = "long", constraint = "80gb", cpus-per-task = 32, mem = "256G" }
 

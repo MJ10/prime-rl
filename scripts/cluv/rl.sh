@@ -34,14 +34,19 @@ prime_rl_root=${PRIME_RL_ROOT:-$SCRATCH/prime-rl}
 snapshot=$prime_rl_root/snapshots/$GIT_COMMIT
 export HF_HOME=${HF_HOME:-$SCRATCH/.cache/huggingface}
 export PRL_OUTPUT_DIR=${PRL_OUTPUT_DIR:-$prime_rl_root/outputs}
-# Nothing is installed or built on shared storage during a job: network filesystems have failed
-# vLLM startup and concurrent builds on Mila. Offline jobs read the cache that --prepare filled.
-if $prepare || [ "${UV_OFFLINE:-0}" = 1 ]; then
-    export UV_CACHE_DIR=${UV_CACHE_DIR:-$SCRATCH/.cache/uv}
-    export UV_PROJECT_ENVIRONMENT=$(mktemp -d "${SLURM_TMPDIR:-$prime_rl_root}/venv.XXXXXX")
+# Each job installs its environment on node-local disk: importing vLLM from network storage is
+# slow and has failed vLLM startup on Mila. PRIME_RL_LOCAL_UV_CACHE=1 also keeps the uv cache there,
+# for filesystems whose file locks don't work across nodes (Mila's BeeGFS), where concurrent jobs
+# corrupted a shared cache. Offline clusters read the shared cache that --prepare filled.
+if $prepare; then
+    export UV_PROJECT_ENVIRONMENT=$(mktemp -d "$prime_rl_root/venv.XXXXXX")
 else
-    export UV_CACHE_DIR=${UV_CACHE_DIR:-$SLURM_TMPDIR/uv-cache}
     export UV_PROJECT_ENVIRONMENT=$SLURM_TMPDIR/venv
+fi
+if ! $prepare && [ "${PRIME_RL_LOCAL_UV_CACHE:-0}" = 1 ]; then
+    export UV_CACHE_DIR=$SLURM_TMPDIR/uv-cache
+else
+    export UV_CACHE_DIR=${UV_CACHE_DIR:-$SCRATCH/.cache/uv}
 fi
 # Mooncake (KV-cache offload, unused here) only has glibc 2.35+ wheels; DRAC nodes have 2.34.
 sync_args=(--all-extras --locked --no-install-package mooncake-transfer-engine)

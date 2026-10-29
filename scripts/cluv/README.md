@@ -105,10 +105,11 @@ Check jobs with `cluv status`. Slurm logs land in `$SCRATCH/logs/prime-rl/<clust
    and later syncs never change the code under a queued or running job. Each job clones into a
    private directory and renames it into place, since file locks don't work across nodes on every
    cluster filesystem.
-   The job installs its environment (`uv sync --all-extras --locked`) into `$SLURM_TMPDIR`. On
-   clusters with internet the uv cache is there too, so nothing is built on shared storage:
-   network filesystems have failed vLLM startup and concurrent builds on Mila. Offline clusters
-   install from the shared cache that `--prepare` fills.
+   The job installs its environment (`uv sync --all-extras --locked`) into `$SLURM_TMPDIR`, since
+   importing vLLM from network storage is slow and has failed vLLM startup on Mila. The uv cache
+   is shared (`$SCRATCH/.cache/uv`, which `--prepare` fills for offline clusters), except where
+   `PRIME_RL_LOCAL_UV_CACHE=1`: Mila's BeeGFS has no cross-node file locks, and concurrent jobs
+   corrupted a shared cache there.
 2. Runs `uv run rl @ <config> --run.name <config name>-<job id> --no-dashboard ...` from the
    snapshot, writing the run to `$SCRATCH/prime-rl/outputs/<config name>-<job id>`.
    Nodes can be shared with other jobs, so the job moves the inference, rollout-transport,
@@ -118,7 +119,7 @@ Check jobs with `cluv status`. Slurm logs land in `$SCRATCH/logs/prime-rl/<clust
    directory and passes `--resume` when it has a checkpoint, otherwise `--clean`. Set `[ckpt]` in
    the config for preemptible partitions.
 
-The job sets these when they are unset: `UV_CACHE_DIR` (see above),
+The job sets these when they are unset: `UV_CACHE_DIR=$SCRATCH/.cache/uv`,
 `HF_HOME=$SCRATCH/.cache/huggingface`, `PRL_OUTPUT_DIR=$SCRATCH/prime-rl/outputs`. Override them,
 or add `WANDB_API_KEY`, through `env` in `[tool.cluv]` or `[tool.cluv.clusters.<name>]`.
 
