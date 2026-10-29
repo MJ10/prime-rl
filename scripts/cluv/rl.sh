@@ -60,7 +60,8 @@ mkdir -p "$prime_rl_root/snapshots"
                 git -C "$snapshot" config "submodule.$name.url" "$project_root/$path"
             done
         git -C "$snapshot" -c protocol.file.allow=always submodule update --quiet
-        uv --directory "$snapshot" sync --all-extras --locked
+        # Mooncake (KV-cache offload, unused here) only has glibc 2.35+ wheels; DRAC nodes have 2.34.
+        uv --directory "$snapshot" sync --all-extras --locked --no-install-package mooncake-transfer-engine
         touch "$snapshot/.ready"
     fi
 ) 9>"$snapshot.lock"
