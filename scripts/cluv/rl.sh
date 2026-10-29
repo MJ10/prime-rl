@@ -83,5 +83,17 @@ else
     run_mode=(--clean)
 fi
 
-echo "commit=$GIT_COMMIT snapshot=$snapshot run_dir=$run_dir restart=${SLURM_RESTART_COUNT:-0}"
-exec uv run --no-sync rl @ "$config" --run.name "$run_name" --no-dashboard "${run_mode[@]}" "$@"
+# Nodes can be shared with other jobs, so give each job its own ports instead of the fixed
+# defaults. Assumes an inference server and NCCL weight broadcast, as single-node configs use.
+port=$((12000 + SLURM_JOB_ID % 800 * 10))
+ports=(
+    --inference.server.port "$port"
+    --inference.backend-port $((port + 1))
+    --orchestrator.model.client.base-url "http://localhost:$port/v1"
+    --rollout-transport.port $((port + 2))
+    --weight-broadcast.port $((port + 3))
+    --inference.vllm.data-parallel-rpc-port $((port + 4))
+)
+
+echo "commit=$GIT_COMMIT snapshot=$snapshot run_dir=$run_dir restart=${SLURM_RESTART_COUNT:-0} port=$port"
+exec uv run --no-sync rl @ "$config" --run.name "$run_name" --no-dashboard "${run_mode[@]}" "${ports[@]}" "$@"

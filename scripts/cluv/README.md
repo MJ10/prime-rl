@@ -105,6 +105,9 @@ Check jobs with `cluv status`. Slurm logs land in `$SCRATCH/logs/prime-rl/<clust
    syncs never change the code under a queued or running job.
 2. Runs `uv run rl @ <config> --run.name <config name>-<job id> --no-dashboard ...` from the
    snapshot, writing the run to `$SCRATCH/prime-rl/outputs/<config name>-<job id>`.
+   Nodes can be shared with other jobs, so the job moves the inference, rollout-transport,
+   weight-broadcast and vLLM data-parallel ports to a block of 10 derived from the job id. This
+   assumes an inference server and NCCL weight broadcast.
 3. On a requeue (`requeue = true` in `[tool.cluv.sbatch_args]`), the same job id finds its run
    directory and passes `--resume` when it has a checkpoint, otherwise `--clean`. Set `[ckpt]` in
    the config for preemptible partitions.
