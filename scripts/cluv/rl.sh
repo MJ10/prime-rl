@@ -46,6 +46,9 @@ mkdir -p "$prime_rl_root/snapshots"
             exit 1
         fi
         rm -rf "$snapshot"
+        # Compute nodes may lack git-lfs; leave LFS pointer files (none of which rl needs) as they are.
+        export GIT_CONFIG_COUNT=2 GIT_CONFIG_KEY_0=filter.lfs.process GIT_CONFIG_VALUE_0= \
+            GIT_CONFIG_KEY_1=filter.lfs.required GIT_CONFIG_VALUE_1=false
         git clone --quiet --no-checkout "$project_root" "$snapshot"
         git -C "$snapshot" checkout --quiet --detach "$GIT_COMMIT"
         git -C "$snapshot" config -f .gitmodules --get-regexp '^submodule\..*\.path$' |

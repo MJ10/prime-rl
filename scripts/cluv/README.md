@@ -28,7 +28,7 @@ ssh mila 'git clone --recurse-submodules git@github.com:MJ10/prime-rl.git ~/repo
 ```
 
 Clone the remote your branch tracks, since cluv fetches and pushes through it. The clone path must
-match `project_dir` (`$SCRATCH/repos/prime-rl` on `trillium-gpu`). The
+match `project_dir` (`$SCRATCH/repos/prime-rl` on `fir` and `trillium-gpu`). The
 cluster needs a GitHub SSH key for the `git@github.com:` submodule URLs.
 
 Then connect and sync:
