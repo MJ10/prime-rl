@@ -445,9 +445,10 @@ requeue = true
 
 [tool.cluv.clusters.mila]
 env = { UV_OFFLINE = "0", HF_HUB_OFFLINE = "0", WANDB_MODE = "online" }
-sbatch_args = { partition = "long", cpus-per-task = 32, mem = "256G" }
+# 80GB A100s; the partition also has V100, RTX8000, L40S and 40GB A100 nodes.
+sbatch_args = { partition = "long", constraint = "80gb", cpus-per-task = 32, mem = "256G" }
 
-# DRAC. Accounts follow cluv's Mila defaults; replace them with your own allocations.
+# DRAC and PAICE clusters, with the bengioy group's allocations.
 [tool.cluv.clusters.narval]
 # 4x A100-40GB per node.
 sbatch_args = { account = "def-bengioy", cpus-per-task = 32, mem = "256G" }
@@ -456,12 +457,13 @@ sbatch_args = { account = "def-bengioy", cpus-per-task = 32, mem = "256G" }
 sbatch_args = { account = "rrg-bengioy-ad", cpus-per-task = 32, mem = "256G" }
 
 [tool.cluv.clusters.fir]
+# The GPU type is required; an untyped request is rejected.
 env = { UV_OFFLINE = "0", HF_HUB_OFFLINE = "0", WANDB_MODE = "online" }
-sbatch_args = { account = "rrg-bengioy-ad", cpus-per-task = 32, mem = "256G" }
+sbatch_args = { account = "rrg-bengioy-ad", gpus-per-node = "h100:4", cpus-per-task = 32, mem = "256G" }
 
 [tool.cluv.clusters.nibi]
 env = { UV_OFFLINE = "0", HF_HUB_OFFLINE = "0", WANDB_MODE = "online" }
-sbatch_args = { account = "rrg-bengioy-ad", cpus-per-task = 32, mem = "256G" }
+sbatch_args = { account = "rrg-bengioy-ad", gpus-per-node = "h100:4", cpus-per-task = 32, mem = "256G" }
 
 [tool.cluv.clusters.trillium-gpu]
 # $HOME isn't mounted on compute nodes, and CPUs and memory come with the GPUs (no --mem).
@@ -469,4 +471,4 @@ project_dir = "$SCRATCH/repos/prime-rl"
 sbatch_args = { account = "rrg-bengioy-ad" }
 
 [tool.cluv.clusters.tamia]
-sbatch_args = { cpus-per-task = 32, mem = "256G" }
+sbatch_args = { account = "aip-bengioy", cpus-per-task = 32, mem = "256G" }

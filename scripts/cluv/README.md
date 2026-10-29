@@ -42,16 +42,16 @@ cluv sync mila
 
 | Cluster | GPUs per node | Compute-node internet | Notes |
 |---|---|---|---|
-| `mila` | 4-8 | yes | `long` partition |
+| `mila` | 4x A100-80GB (`80gb` constraint) | yes | `long` partition |
 | `narval` | 4x A100-40GB | no | |
 | `rorqual` | 4x H100-80GB | no | |
-| `fir` | 4x H100-80GB | yes | |
-| `nibi` | 8x H100-80GB | yes | |
+| `fir` | 4x H100-80GB | yes | requires a typed request (`h100:4`) |
+| `nibi` | 8x H100-80GB | yes | requires a typed request (`h100:4`) |
 | `trillium-gpu` | 4x H100-80GB | no | project on `$SCRATCH`, CPUs and memory fixed per GPU, 24h max |
 | `tamia` | 4x H100-80GB | no | |
 
-The DRAC `account` values follow cluv's Mila defaults (`rrg-bengioy-ad`, `def-bengioy`); replace
-them with your own allocations. A list of `sbatch_args` submits one job per allocation and keeps
+The `account` values are the bengioy group's allocations (`rrg-bengioy-ad`, `def-bengioy`,
+`aip-bengioy` on tamia); replace them with your own. A list of `sbatch_args` submits one job per allocation and keeps
 the first to start.
 
 ### Clusters without internet on compute nodes
@@ -88,7 +88,7 @@ Arguments before `--` are `sbatch` flags and override the `#SBATCH` header of `r
 `[tool.cluv.sbatch_args]`:
 
 ```bash
-cluv submit nibi --gpus-per-node=8 --time=3-00:00:00 -- examples/glyphbench/single_node.toml
+cluv submit nibi --gpus-per-node=h100:8 --time=3-00:00:00 -- examples/glyphbench/single_node.toml
 ```
 
 `cluv submit first -- <config>` submits to every connected cluster and keeps whichever job starts

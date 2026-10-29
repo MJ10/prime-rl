@@ -35,7 +35,7 @@ cluv submit mila -- examples/glyphbench/single_node.toml --monitors.wandb.projec
 On an 8-GPU node, request the GPUs and split them:
 
 ```bash
-cluv submit nibi --gpus-per-node=8 -- examples/glyphbench/single_node.toml \
+cluv submit nibi --gpus-per-node=h100:8 -- examples/glyphbench/single_node.toml \
   --deployment.gpus-per-node 8 --deployment.num-infer-gpus 4 --deployment.num-train-gpus 4 \
   --inference.vllm.data-parallel-size 4 --inference.vllm.api-server-count 4
 ```
