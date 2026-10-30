@@ -115,6 +115,11 @@ Check jobs with `cluv status`. Slurm logs land in `$SCRATCH/logs/prime-rl/<clust
    Nodes can be shared with other jobs, so the job moves the inference, rollout-transport,
    weight-broadcast and vLLM data-parallel ports to a block of 10 derived from the job id. This
    assumes an inference server and NCCL weight broadcast.
+   Process logs are written to `$SLURM_TMPDIR` and mirrored into the run's `logs/attempt_<n>/`
+   every minute and when the job exits, including on preemption or cancellation. On Mila's
+   BeeGFS, appends to log files held open for hours start failing with `Remote I/O error`.
+   Follow a running job with `tail -F <run dir>/logs/latest/orchestrator.log`, which trails the
+   job by up to a minute.
 3. On a requeue (`requeue = true` in `[tool.cluv.sbatch_args]`), the same job id finds its run
    directory and passes `--resume` when it has a checkpoint, otherwise `--clean`. Set `[ckpt]` in
    the config for preemptible partitions.

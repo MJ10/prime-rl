@@ -6,7 +6,8 @@
 #
 # Runs from a per-commit snapshot of the cluster checkout so later `cluv sync`s don't change the
 # code under a queued, running or requeued job, with its environment installed on node-local disk.
-# Requeued jobs resume from their latest checkpoint.
+# Requeued jobs resume from their latest checkpoint. Logs are written on node-local disk and
+# mirrored into the run directory every minute.
 #
 # On clusters whose compute nodes have no internet (UV_OFFLINE=1), fill the uv cache and download
 # the model on a login node first, from the cluster checkout:
@@ -94,6 +95,27 @@ else
     run_mode=(--clean)
 fi
 
+# Logs go to node-local disk and are mirrored into $run_dir/logs every minute and on exit: on
+# Mila's BeeGFS, appends to files held open for hours start failing with "Remote I/O error".
+last_attempt=0
+if [ "${run_mode[0]}" = --resume ]; then
+    for dir in "$run_dir"/logs/attempt_* "$run_dir"/configs/attempt_*; do
+        [ -e "$dir" ] || continue
+        if [ "${dir##*_}" -gt "$last_attempt" ]; then
+            last_attempt=${dir##*_}
+        fi
+    done
+fi
+attempt=attempt_$((last_attempt + 1))
+local_logs=$SLURM_TMPDIR/logs/$attempt
+export PRL_ATTEMPT_LOG_DIR=$local_logs PRL_ATTEMPT_CONFIG_DIR=$run_dir/configs/$attempt/resolved
+mirror_logs() {
+    mkdir -p "$run_dir/logs" &&
+        rsync -a "$local_logs" "$run_dir/logs/" &&
+        ln -sfn "$attempt" "$run_dir/logs/latest" &&
+        ln -sfn "$attempt" "$run_dir/configs/latest"
+}
+
 # Nodes can be shared with other jobs, so give each job its own ports instead of the fixed
 # defaults. Assumes an inference server and NCCL weight broadcast, as single-node configs use.
 port=$((12000 + SLURM_JOB_ID % 800 * 10))
@@ -106,5 +128,11 @@ ports=(
     --inference.vllm.data-parallel-rpc-port $((port + 4))
 )
 
-echo "commit=$GIT_COMMIT snapshot=$snapshot run_dir=$run_dir restart=${SLURM_RESTART_COUNT:-0} port=$port"
-exec uv run --no-sync rl @ "$config" --run.name "$run_name" --no-dashboard "${run_mode[@]}" "${ports[@]}" "$@"
+echo "commit=$GIT_COMMIT snapshot=$snapshot run_dir=$run_dir logs=$run_dir/logs/$attempt restart=${SLURM_RESTART_COUNT:-0} port=$port"
+# The first mirror waits a minute, so `--clean` has already reset the run directory.
+(while sleep 60; do mirror_logs || true; done) &
+mirror_pid=$!
+trap 'kill "$mirror_pid" 2>/dev/null || true; mirror_logs' EXIT
+# Slurm sends SIGTERM on preemption and cancellation: exit, mirroring the logs, once rl stops.
+trap 'exit 143' TERM
+uv run --no-sync rl @ "$config" --run.name "$run_name" --no-dashboard "${run_mode[@]}" "${ports[@]}" "$@"
